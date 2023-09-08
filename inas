@@ -44,7 +44,7 @@ txns.sort! { |t| t.occurred_at }
 
 output = CSV.generate do |csv|
   txns.each do |txn|
-    csv << [txn.occurred_at, txn.payee, txn.memo, txn.amount]
+    csv << [txn.occurred_at, txn.payee, txn.memo, -txn.amount]
   end
 end
 
