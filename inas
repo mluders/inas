@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+
+require 'ofx-parser'
+require 'tty-command'
+require 'csv'
+
+class Transaction
+  attr_accessor :occurred_at, :payee, :memo, :amount
+
+  def initialize(ofx_txn)
+    self.occurred_at = ofx_txn.date
+    self.payee = ofx_txn.payee
+    self.memo = ofx_txn.memo
+    self.amount = ofx_txn.amount.to_f
+  end
+end
+
+script = <<-END
+  osascript -l JavaScript -e '
+    a=Application.currentApplication();
+    a.includeStandardAdditions=true;
+    a.chooseFile({
+      withPrompt:"Choose your files:",
+      multipleSelectionsAllowed: true,
+      ofType: ["ofx", "qfx"]
+    }).join(":")
+  '
+END
+
+puts 'Opening Finder...'
+
+txns = []
+TTY::Command.new(printer: :null).run(script).out.chomp.split(':').each do |file_path|
+  ofx = OfxParser::OfxParser.parse(open(file_path))
+  [ofx.bank_account, ofx.credit_card].compact.each do |account|
+    account.statement.transactions.each do |ofx_txn|
+      txns << Transaction.new(ofx_txn)
+    end
+  end
+end
+
+txns.reject! { |t| t.amount.positive? }
+
+output = CSV.generate do |csv|
+  txns.each do |txn|
+    csv << [txn.occurred_at, txn.payee, txn.memo, txn.amount]
+  end
+end
+
+IO.popen('pbcopy', 'w') { |f| f << output }
+
+puts 'Transactions have been copied to the clipboard.'
