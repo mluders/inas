@@ -43,7 +43,7 @@ TTY::Command.new(printer: :null).run(script).out.chomp.split(':').each do |file_
 end
 
 txns.reject! { |t| t.amount.positive? }
-txns.sort! { |t| t.occurred_at }
+txns.sort_by!(&:occurred_at)
 
 output = CSV.generate do |csv|
   txns.each do |txn|
